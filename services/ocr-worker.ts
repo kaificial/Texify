@@ -111,8 +111,9 @@ self.onmessage = async (event) => {
             // these settings help the ai stay focused
             const result = await ocrPipeline(processedImage, {
                 num_beams: 5,
-                max_new_tokens: 256,
-                repetition_penalty: 1.2,
+                max_new_tokens: 384,
+                repetition_penalty: 1.3,
+                temperature: 0.1,
             });
 
             let output = result[0].generated_text;
