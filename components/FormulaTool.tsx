@@ -159,7 +159,7 @@ const FormulaTool: React.FC = () => {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
 
-        // make everything black or white
+        // make everything black or white with a clean threshold
         for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
             const g = data[i + 1];
@@ -168,8 +168,8 @@ const FormulaTool: React.FC = () => {
             // figure out how bright this pixel is
             const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
 
-            // anything darker than this becomes black
-            const threshold = 200;
+            // map to strict black and white
+            const threshold = 180;
             const newValue = luminance < threshold ? 0 : 255;
 
             data[i] = newValue;
@@ -178,44 +178,7 @@ const FormulaTool: React.FC = () => {
         }
 
         ctx.putImageData(imageData, 0, 0);
-
-        // make the strokes thicker so they're easier to read
-        const dilatedCanvas = document.createElement('canvas');
-        dilatedCanvas.width = canvas.width;
-        dilatedCanvas.height = canvas.height;
-        const dilatedCtx = dilatedCanvas.getContext('2d', { willReadFrequently: true });
-
-        if (dilatedCtx) {
-            // white background
-            dilatedCtx.fillStyle = '#FFFFFF';
-            dilatedCtx.fillRect(0, 0, dilatedCanvas.width, dilatedCanvas.height);
-
-            // draw shifted copies to thicken lines
-            const offsets = [
-                [0, 0], [1, 0], [-1, 0], [0, 1], [0, -1],
-                [1, 1], [-1, -1], [1, -1], [-1, 1]
-            ];
-
-            offsets.forEach(([dx, dy]) => {
-                dilatedCtx.drawImage(canvas, dx, dy);
-            });
-
-            // make it black and white again
-            const finalData = dilatedCtx.getImageData(0, 0, dilatedCanvas.width, dilatedCanvas.height);
-            const fd = finalData.data;
-
-            for (let i = 0; i < fd.length; i += 4) {
-                const luminance = 0.299 * fd[i] + 0.587 * fd[i + 1] + 0.114 * fd[i + 2];
-                const newValue = luminance < 250 ? 0 : 255;
-                fd[i] = newValue;
-                fd[i + 1] = newValue;
-                fd[i + 2] = newValue;
-            }
-
-            dilatedCtx.putImageData(finalData, 0, 0);
-        }
-
-        return dilatedCanvas;
+        return canvas;
     };
 
     const getCroppedCanvas = (canvas: HTMLCanvasElement) => {
