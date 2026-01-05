@@ -20,7 +20,6 @@ const init = async () => {
     }
 };
 
-// prep the image before sending to ai
 const preprocessImage = async (imageSource: string): Promise<RawImage> => {
     const img = await RawImage.fromURL(imageSource);
     // texify performs best when the formula is prominent.
@@ -31,6 +30,10 @@ const preprocessImage = async (imageSource: string): Promise<RawImage> => {
 // clean up the latex output
 const sanitizeLatex = (text: string): string => {
     let clean = text.trim();
+
+    // remove markdown code blocks
+    clean = clean.replace(/^```latex\n?/, '').replace(/```$/, '');
+    clean = clean.replace(/^```\n?/, '').replace(/```$/, '');
 
     // strip dollar signs and other wrappers
     if (clean.startsWith('$$') && clean.endsWith('$$')) {
@@ -43,45 +46,13 @@ const sanitizeLatex = (text: string): string => {
         clean = clean.substring(2, clean.length - 2);
     }
 
-    clean = clean.replace(/^```latex/, '').replace(/```$/, '');
-
-    // detect repetitive patterns that indicate recognition failure
     const repeatedPattern = /(.{3,})\1{3,}/;
-    if (repeatedPattern.test(clean)) {
-        return "Recognition unclear. Please try drawing with thicker strokes.";
+    if (repeatedPattern.test(clean) && clean.length > 50) {
+        return "Recognition unclear. Please try drawing with thinner strokes.";
     }
 
-    // too many backslashes in a row usually means garbage
     if (/\\{4,}/.test(clean)) {
-        return "Recognition failed. Please redraw with clearer strokes.";
-    }
-
-    // check for excessive special characters which indicates noise
-    const specialCharCount = (clean.match(/[{}\\^_]/g) || []).length;
-    const letterCount = (clean.match(/[a-zA-Z0-9]/g) || []).length;
-    if (specialCharCount > letterCount * 2 && clean.length > 20) {
-        return "Could not parse handwriting. Try drawing larger symbols.";
-    }
-
-    // catch when the ai hallucinates garbage
-    if (clean.includes('(x,y)') && clean.length > 50) {
-        const parts = clean.split('=');
-        if (parts.length > 3) return "Recognition failed. Please try a clearer drawing.";
-    }
-
-    // detect common hallucination patterns
-    if (clean.includes('\\text{') && clean.split('\\text{').length > 4) {
-        return "Recognition unclear. Please simplify your drawing.";
-    }
-
-    // check for unreasonably long output which usually means the model looped
-    if (clean.length > 500) {
-        // try to salvage by taking just the first meaningful part
-        const firstPart = clean.split(/[.,;]|\\\\|\\text/)[0].trim();
-        if (firstPart.length > 5 && firstPart.length < 200) {
-            return firstPart;
-        }
-        return "Output too long. Please draw smaller equations or simpler symbols.";
+        return "Recognition failed. Please redraw.";
     }
 
     // remove common trailing artifacts
@@ -108,7 +79,7 @@ self.onmessage = async (event) => {
 
             const processedImage = await preprocessImage(image);
 
-            // these settings help the ai stay focused
+            // optimized parameters for texify
             const result = await ocrPipeline(processedImage, {
                 num_beams: 5,
                 max_new_tokens: 384,
