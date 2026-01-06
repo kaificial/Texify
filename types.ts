@@ -11,3 +11,10 @@ export enum AppState {
   PROCESSING = 'PROCESSING',
   RESULT = 'BOOM'
 }
+
+export interface HistoryItem {
+  id: string;
+  latex: string;
+  timestamp: number;
+  image?: string;
+}
