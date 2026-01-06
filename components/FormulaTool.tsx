@@ -10,6 +10,7 @@ const FormulaTool: React.FC = () => {
     const [latex, setLatex] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const [aiStatus, setAiStatus] = useState<string>('');
+    const [downloadProgress, setDownloadProgress] = useState<number>(0);
     const [strokeSize, setStrokeSize] = useState<number>(4);
     const [isEraser, setIsEraser] = useState<boolean>(false);
     const [history, setHistory] = useState<ImageData[]>([]);
@@ -21,7 +22,7 @@ const FormulaTool: React.FC = () => {
 
     // start up ai when component loads
     useEffect(() => {
-        initLocalAI((status) => setAiStatus(status));
+        initLocalAI((status) => setAiStatus(status), (progress) => setDownloadProgress(progress));
     }, []);
 
     // set up drawing canvas
@@ -159,7 +160,7 @@ const FormulaTool: React.FC = () => {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
 
-        // make everything black or white with a clean threshold
+        // make everything black or white
         for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
             const g = data[i + 1];
@@ -454,14 +455,36 @@ const FormulaTool: React.FC = () => {
 
                 {/* loading screen */}
                 {state === AppState.PROCESSING && (
-                    <div className="p-24 flex flex-col items-center justify-center gap-6">
-                        <div className="w-12 h-12 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
-                        <div className="text-center space-y-1">
-                            <p className="font-light text-slate-900 tracking-tight lowercase">
-                                {aiStatus || 'running-inference...'}
-                            </p>
-                            <p className="text-[10px] uppercase tracking-widest text-slate-400">Transformer Layer Processing</p>
-                        </div>
+                    <div className="p-24 flex flex-col items-center justify-center gap-8">
+                        {downloadProgress > 0 && downloadProgress < 100 ? (
+                            <div className="w-full max-w-sm space-y-4">
+                                <div className="flex justify-between items-end">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] uppercase tracking-widest text-slate-400">Initializing AI Model</p>
+                                        <p className="font-light text-slate-900 tracking-tight lowercase">
+                                            {aiStatus || 'fetching-weights...'}
+                                        </p>
+                                    </div>
+                                    <span className="text-2xl font-light tracking-tighter text-slate-900">{Math.round(downloadProgress)}%</span>
+                                </div>
+                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-slate-900 transition-all duration-300 ease-out"
+                                        style={{ width: `${downloadProgress}%` }}
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="w-12 h-12 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+                                <div className="text-center space-y-1">
+                                    <p className="font-light text-slate-900 tracking-tight lowercase">
+                                        {aiStatus || 'running-inference...'}
+                                    </p>
+                                    <p className="text-[10px] uppercase tracking-widest text-slate-400">Transformer Layer Processing</p>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
 

@@ -13,7 +13,18 @@ const init = async () => {
 
     try {
         // texify works better for math formulas
-        ocrPipeline = await pipeline('image-to-text', 'Xenova/texify');
+        ocrPipeline = await pipeline('image-to-text', 'Xenova/texify', {
+            progress_callback: (progress: any) => {
+                if (progress.status === 'progress') {
+                    self.postMessage({
+                        status: 'download_progress',
+                        message: `downloading ${progress.file}...`,
+                        progress: progress.progress,
+                        file: progress.file
+                    });
+                }
+            }
+        });
         self.postMessage({ status: 'ready', message: 'ai ready' });
     } catch (error: any) {
         self.postMessage({ status: 'error', message: error.message });
