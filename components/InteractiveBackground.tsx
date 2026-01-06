@@ -47,6 +47,28 @@ const InteractiveBackground: React.FC = () => {
       });
     }
 
+    // boxes for the top left area 
+    for (let i = 0; i < 2; i++) {
+      boxes.push({
+        x: Math.random() * (width * 0.3),
+        y: Math.random() * (height * 0.3),
+        w: 40 + Math.random() * 80,
+        h: 40 + Math.random() * 80,
+        opacity: 0.03 + Math.random() * 0.06
+      });
+    }
+
+    // extra boxes for the top right
+    for (let i = 0; i < 4; i++) {
+      boxes.push({
+        x: width * 0.65 + Math.random() * (width * 0.3),
+        y: Math.random() * (height * 0.3),
+        w: 40 + Math.random() * 80,
+        h: 40 + Math.random() * 80,
+        opacity: 0.03 + Math.random() * 0.06
+      });
+    }
+
     const draw = () => {
       ctx.clearRect(0, 0, width, height);
 
