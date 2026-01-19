@@ -19,6 +19,8 @@ const FormulaTool: React.FC = () => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const previewRef = useRef<HTMLDivElement>(null);
     const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+    const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
+    const [pendingImageData, setPendingImageData] = useState<string | null>(null);
     const isDrawing = useRef(false);
 
     // load history from local storage
@@ -38,10 +40,7 @@ const FormulaTool: React.FC = () => {
         localStorage.setItem('texify_history', JSON.stringify(historyItems));
     }, [historyItems]);
 
-    // start up ai when component loads
-    useEffect(() => {
-        initLocalAI((status) => setAiStatus(status), (progress) => setDownloadProgress(progress));
-    }, []);
+
 
     // set up drawing canvas
     useEffect(() => {
@@ -259,39 +258,21 @@ const FormulaTool: React.FC = () => {
             return;
         }
 
-        handleProcessWithImage(croppedCanvas.toDataURL('image/png'));
+        // show confirmation popup before processing
+        setPendingImageData(croppedCanvas.toDataURL('image/png'));
+        setShowConfirmation(true);
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        setState(AppState.PROCESSING);
-        setError(null);
-
         const reader = new FileReader();
         reader.onload = async (event) => {
-            try {
-                const dataUrl = event.target?.result as string;
-                setProcessedImage(dataUrl);
-                const result = await convertImageLocally(dataUrl);
-                setLatex(result);
-                setState(AppState.RESULT);
-
-                // save to history
-                if (result && !result.includes('failed') && !result.includes('unclear')) {
-                    const newItem: HistoryItem = {
-                        id: Math.random().toString(36).substring(2, 9),
-                        latex: result,
-                        timestamp: Date.now(),
-                        image: dataUrl
-                    };
-                    setHistoryItems(prev => [newItem, ...prev].slice(0, 20));
-                }
-            } catch (err: any) {
-                setError(err.message);
-                setState(AppState.IDLE);
-            }
+            const dataUrl = event.target?.result as string;
+            // show confirmation popup before processing
+            setPendingImageData(dataUrl);
+            setShowConfirmation(true);
         };
         reader.readAsDataURL(file);
     };
@@ -331,6 +312,22 @@ const FormulaTool: React.FC = () => {
             setError(err.message);
             setState(AppState.IDLE);
         }
+    };
+
+    const handleConfirmProcess = () => {
+        setShowConfirmation(false);
+        // initialize ai with callbacks
+        initLocalAI((status) => setAiStatus(status), (progress) => setDownloadProgress(progress));
+
+        if (pendingImageData) {
+            handleProcessWithImage(pendingImageData);
+            setPendingImageData(null);
+        }
+    };
+
+    const handleCancelProcess = () => {
+        setShowConfirmation(false);
+        setPendingImageData(null);
     };
 
     return (
@@ -504,35 +501,19 @@ const FormulaTool: React.FC = () => {
                 {/* loading screen */}
                 {state === AppState.PROCESSING && (
                     <div className="p-24 flex flex-col items-center justify-center gap-8">
-                        {downloadProgress > 0 && downloadProgress < 100 ? (
-                            <div className="w-full max-w-sm space-y-4">
-                                <div className="flex justify-between items-end">
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] uppercase tracking-widest text-slate-400">Initializing AI Model</p>
-                                        <p className="font-light text-slate-900 tracking-tight lowercase">
-                                            {aiStatus || 'fetching-weights...'}
-                                        </p>
-                                    </div>
-                                    <span className="text-2xl font-light tracking-tighter text-slate-900">{Math.round(downloadProgress)}%</span>
-                                </div>
-                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-slate-900 transition-all duration-300 ease-out"
-                                        style={{ width: `${downloadProgress}%` }}
-                                    />
-                                </div>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="w-12 h-12 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
-                                <div className="text-center space-y-1">
-                                    <p className="font-light text-slate-900 tracking-tight lowercase">
-                                        {aiStatus || 'running-inference...'}
-                                    </p>
-                                    <p className="text-[10px] uppercase tracking-widest text-slate-400">Transformer Layer Processing</p>
-                                </div>
-                            </>
-                        )}
+                        <div className="w-12 h-12 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+                        <div className="text-center space-y-1">
+                            <p className="font-light text-slate-900 tracking-tight lowercase">
+                                {downloadProgress > 0 && downloadProgress < 100
+                                    ? `downloading...`
+                                    : (aiStatus || 'running-inference...')}
+                            </p>
+                            <p className="text-[10px] uppercase tracking-widest text-slate-400">
+                                {downloadProgress > 0 && downloadProgress < 100
+                                    ? 'Initializing AI Model'
+                                    : 'Transformer Layer Processing'}
+                            </p>
+                        </div>
                     </div>
                 )}
 
@@ -644,6 +625,38 @@ const FormulaTool: React.FC = () => {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+            {/* confirmation modal */}
+            {showConfirmation && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm transition-all duration-300">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 border border-slate-100 transform transition-all scale-100">
+                        <div className="flex flex-col items-center text-center space-y-4">
+                            <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-900 mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-slate-900">Download Required</h3>
+                            <p className="text-sm text-slate-500 leading-relaxed px-2">
+                                To process images locally on your device, we need to download AI models. This may take a moment but only needs to happen once.
+                            </p>
+                            <div className="flex w-full gap-3 pt-4">
+                                <button
+                                    onClick={handleCancelProcess}
+                                    className="flex-1 py-3 text-[10px] uppercase tracking-widest text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleConfirmProcess}
+                                    className="flex-1 py-3 bg-slate-900 text-white text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
+                                >
+                                    Proceed
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

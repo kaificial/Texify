@@ -6,10 +6,10 @@ let statusCallback: (status: string) => void = () => { };
 let progressCallback: (progress: number) => void = () => { };
 
 export const initLocalAI = (onStatusChange?: (status: string) => void, onProgress?: (progress: number) => void) => {
-    if (worker) return;
-
     if (onStatusChange) statusCallback = onStatusChange;
     if (onProgress) progressCallback = onProgress;
+
+    if (worker) return;
 
     worker = new Worker(new URL('./ocr-worker.ts', import.meta.url), {
         type: 'module'

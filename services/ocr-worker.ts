@@ -14,6 +14,7 @@ const init = async () => {
     try {
         // texify works better for math formulas
         ocrPipeline = await pipeline('image-to-text', 'Xenova/texify', {
+            dtype: 'q8',
             progress_callback: (progress: any) => {
                 if (progress.status === 'progress') {
                     self.postMessage({
