@@ -277,6 +277,34 @@ const FormulaTool: React.FC = () => {
         reader.readAsDataURL(file);
     };
 
+    const handlePaste = (e: ClipboardEvent) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const blob = items[i].getAsFile();
+                if (blob) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const dataUrl = event.target?.result as string;
+                        setPendingImageData(dataUrl);
+                        setShowConfirmation(true);
+                    };
+                    reader.readAsDataURL(blob);
+                }
+                break;
+            }
+        }
+    };
+
+    useEffect(() => {
+        window.addEventListener('paste', handlePaste);
+        return () => {
+            window.removeEventListener('paste', handlePaste);
+        };
+    }, []);
+
     const copyToClipboard = () => {
         navigator.clipboard.writeText(latex);
     };
@@ -378,9 +406,9 @@ const FormulaTool: React.FC = () => {
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                                     </svg>
                                 </div>
-                                <h3 className="text-2xl font-light text-slate-900 mb-2">Upload Image</h3>
+                                <h3 className="text-2xl font-light text-slate-900 mb-2">Upload or Paste</h3>
                                 <p className="text-slate-400 text-sm leading-relaxed mb-8">
-                                    Upload textbook, pages, whiteboard photos, or screenshots.
+                                    Upload photos or paste (Ctrl+V) directly from your clipboard.
                                 </p>
                                 <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-slate-400 group-hover:text-slate-900 transition-colors">
                                     Choose File
